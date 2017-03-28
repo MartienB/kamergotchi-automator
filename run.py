@@ -30,21 +30,23 @@ def giveMostNeededCare(player_token):
     game = returnJson['game']
     careLeft = game['careLeft']
     current = game['current']
-
+    health = game['health']
     foodValue = current['food']
     attentionValue = current['attention']
     knowledgeValue = current['knowledge']
-
     careReset = game['careReset']
     claimReset = game['claimReset']
-
+    score = game['score']
+    dayScore = game['dayScore']
     careResetDate = datetime.datetime.strptime(careReset, "%Y-%m-%dT%H:%M:%S.%fZ")
     claimResetDate = datetime.datetime.strptime(claimReset, "%Y-%m-%dT%H:%M:%S.%fZ")
+    
     now = datetime.datetime.utcnow()
 
     # check if it is time to claim the bonus
     if (now > claimResetDate):
         claimBonus(player_token)
+
 
     # check if there are care's left, or if the careResetDate has elapsed (careLeft stays 0 even after reset date) .
     if (careLeft > 0 or now > careResetDate):
@@ -63,13 +65,25 @@ def giveMostNeededCare(player_token):
         return 0
     else:
         remainingSeconds = (careResetDate-now).total_seconds()
-        print ('{}{}'.format('Not yet! Remaining seconds:', remainingSeconds))
-        return remainingSeconds
+        remainingClaimSeconds = (claimResetDate-now).total_seconds()
+        localtime = time.asctime( time.localtime(time.time()) )
+        print ("Local current time :", localtime)
+        print ("Waiting %s seconds (%s minutes)for care" % ((round(remainingSeconds)), (round(remainingSeconds/60,1))))
+        print ("and %s seconds (%s minutes) for Bonus Claim" % ((round(remainingClaimSeconds)), (round(remainingClaimSeconds/60,1))))
+        print ("Dayscore: %s and Totalscore: %s" % (dayScore, score))
+        print ('{}{}'.format('Health:', health))
+        print ('{}{}, {}{}, {}{}'.format('Food:', foodValue, 'Attention:' , attentionValue,'Knowledge:', knowledgeValue))
+        
+
+        if (remainingSeconds < remainingClaimSeconds):
+            return remainingSeconds
+        else:
+            return remainingClaimSeconds
     
 def claimBonus(player_token):
     context = ssl._create_unverified_context() 
     sessionUrl = 'https://api.kamergotchi.nl/game/claim'
-    reqBody = {'bar' : 'foo'}
+    reqBody = {'arjen' : 'leuk'}
 
     data = json.dumps(reqBody).encode('utf-8')
 
@@ -90,7 +104,8 @@ def claimBonus(player_token):
         response = urllib.request.urlopen(req, context=context)
         jsonresp = response.read().decode()
         # print(jsonresp)
-        print('Succesfully claimed bonus!')
+        localtime = time.asctime( time.localtime(time.time()) )
+        print("Succesfully claimed bonus! At %s" % (localtime) )
     except HTTPError as httperror:
         print(httperror)
     except URLError as urlerror:
@@ -111,12 +126,6 @@ def giveCare(player_token, careType):
     headers['x-player-token'] = player_token
     headers['Content-type'] = "application/json;charset=utf-8"
     
-    # headers['User-Agent'] = "kamergotchi/86 CFNetwork/808.0.2 Darwin/16.0.0"
-    # headers['Host'] = "api.kamergotchi.nl"
-    # headers['Accept-Language'] = "en-us"
-    # headers['Accept'] = "application/json, text/plain, */*"
-    # headers['Connection'] = "close"
-
     req = urllib.request.Request(sessionUrl, data, headers)
 
     try: 
@@ -140,10 +149,6 @@ player_token = '' # Token can be found in the request header (x-player-token)
 
 while True:
     sleep = giveMostNeededCare(player_token)
-    if (sleep == 0):
-        sleep += randint(1,3) # There are care's left, so just small timeout
-    else:
-        sleep += randint(2,120) # Waiting for careResetDate, bigger timout to keep things realistic
-
+    print ("sleeping: %s seconds" % (round(sleep)))
+    sleep += (0.5) # So just small timeout
     time.sleep(sleep)
-
